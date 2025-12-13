@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+<title>PIANOFIGHT Forecast</title>
+<!--meta name="viewport" content="width=device-width, initial-scale=1"-->
+<link href='https://fonts.googleapis.com/css?family=Open+Sans:700,400' rel='stylesheet' type='text/css'>
+<script   src="https://code.jquery.com/jquery-3.3.1.min.js"   integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="   crossorigin="anonymous"></script>
+<script type='text/javascript' src="chosen_v1.4.2/chosen.jquery.min.js"></script>
+<script type='text/javascript' src="chosen_v1.4.2/chosen.proto.min.js"></script>
+<link rel="stylesheet" type="text/css" href="chosen_v1.4.2/chosen.min.css">
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+
+<link href="favicon.ico" rel="icon" type="image/x-icon" />
+<!--link rel="apple-touch-icon" href="https://www.pianofight.com/internal/rev-wiz-icon.png"-->
+
+<script type="text/javascript">
+var myEvents;
+var myAttendees;
+var myVenues;
+var myReconStats;
+var idEvents = [];
+var idAttendees = [];
+var events_in_state = []
+var todaysDate = new Date();
+var html = "";
+
+var days = new Array(7)
+days[0] = "Sunday";
+days[1] = "Monday";
+days[2] = "Tuesday";
+days[3] = "Wednesday";
+days[4] = "Thursday";
+days[5] = "Friday";
+days[6] = "Saturday";
+
+var months = new Array(12);
+months[0] = "January";
+months[1] = "February";
+months[2] = "March";
+months[3] = "April";
+months[4] = "May";
+months[5] = "June";
+months[6] = "July";
+months[7] = "August";
+months[8] = "September";
+months[9] = "October";
+months[10] = "November";
+months[11] = "December";
+
+$(document).ready(function(){
+	/*if(window.location.href != "https://www.pianofight.com/forecast/"){
+		window.location.assign("https://www.pianofight.com/forecast/")
+	}*/
+
+	//GET EVENTS
+	var xmlHttp = new XMLHttpRequest();
+	var randomVar = Math.floor( Math.random() * ( 1000000000) );  //using this to bust caching of the JSON file(s)
+    
+    xmlHttp.open( "GET", "../internal/eventbrite-data/events-all.JSON?v=" + randomVar, false )
+    xmlHttp.send();
+    myEvents = JSON.parse(xmlHttp.responseText);
+    /*console.log("My Events");
+    console.log(myEvents);*/
+    
+    //GET ATTENDEES
+    xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "GET", "../internal/eventbrite-data/attendees.JSON?v=" + randomVar , false )
+    xmlHttp.send();
+    myAttendees = JSON.parse(xmlHttp.responseText);
+    /*console.log("My Attendees");
+    console.log(myAttendees);*/
+    
+    //GET VENUES STATS
+    xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "GET", "../internal/eventbrite-data/venues.JSON?v=" + randomVar , false )
+    xmlHttp.send();
+    myVenues = JSON.parse(xmlHttp.responseText);
+    /*console.log("My Venus");
+    console.log(myVenues);*/
+    
+    //GET RECONCILLIATION STATS
+    xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "GET", "../internal/reconStats.JSON?v=" + randomVar , false )
+    xmlHttp.send();
+    myReconStats = JSON.parse(xmlHttp.responseText);
+    /*console.log("My Recon Stats");
+    console.log(myReconStats);*/
+    
+    //REMOVE UNLISTED EVENTS
+    var unlistedEvents = [];
+    
+    for(i = 0; i < myEvents.length; i++){
+    	if(myEvents[i].listed != true){
+    		unlistedEvents.push(i);
+    	}
+    }
+    for(i = unlistedEvents.length ; i > 0; i--){
+    	myEvents.splice(unlistedEvents[i-1], 1);
+    }
+    //END REMOVING UNLISTED EVENTS
+	
+	for(i=0;i<myEvents.length;i++){
+    	idEvents[myEvents[i].id]=myEvents[i]; 
+    }
+
+	for (i=0;i<myAttendees.length;i++){
+		//Filter out free, goldstar, refunded, cacncelled
+		if(myAttendees[i].cancelled === false && myAttendees[i].refunded === false && myAttendees[i].costs.payment_fee.value > 0){
+			if(!(myAttendees[i].event_id in idAttendees)){idAttendees[myAttendees[i].event_id]=[]}
+			idAttendees[myAttendees[i].event_id].push(myAttendees[i]);
+		}
+	}
+    
+    //Sort all attendees by purchase date within idAttendees
+    for (id in idAttendees){
+        let sortedArray = sortByDate(idAttendees[id]);
+    }
+	
+	for (i=0; i<myEvents.length; i++){
+		if(myEvents[i].status === "completed" && myEvents[i].id in myReconStats && myReconStats[myEvents[i].id].stage != "Bar Stage" && myReconStats[myEvents[i].id].stage != "Full Venue" && myEvents[i].id in idAttendees){
+			var itemval = "<option value='" + myEvents[i].id + "'>" + myEvents[i].name.text + " - " + myEvents[i].start.utc + "</option>";
+			$("#input-show").append(itemval);
+		}
+		else if(myEvents[i].status === "live" && ((myEvents[i]['venue_id'] in myVenues && myVenues[myEvents[i]['venue_id']]['address']['address_1'] === "Main Stage") || (myEvents[i]['venue_id'] in myVenues && myVenues[myEvents[i]['venue_id']]['address']['address_1'] === "Second Stage")) /*&& myEvents[i].id in idAttendees*/){
+			var itemval = "<option value='" + myEvents[i].id + "'>" + myEvents[i].name.text + " - " + myEvents[i].start.utc + "</option>";
+			$("#input-upcoming-show").append(itemval);
+		}
+	}
+	
+	$("#input-show").chosen();
+	$("#input-upcoming-show").chosen();
+    
+    forecast(simulation=true);
+
+});
+
+function initializeValues(){
+	//Initial Values
+	var days = parseInt($("#input-days").val());
+    var days_delta = parseInt($("#input-days-delta").val());
+	var hours = parseInt($("#input-hours").val());
+    var hours_delta = parseInt($("#input-hours-delta").val());
+    	
+	var initial_tix = parseInt($("#input-initial-tix").val());
+	var tix_delta = parseInt($("#input-tix-delta").val());
+	var stage = $("#input-stage").val();
+	
+	var smooth_by = $("#input-smooth-by").val();
+	
+	//var weight_show = $("#input-past-show-weight").val();
+	//var weight_org = $("#input-past-organizer-weight").val();
+    
+    var weight_show = 0;
+    var weight_org = 0;
+	
+	if (stage === "Main Stage"){ var max_tix = 120; }
+	else if (stage === "Second Stage"){ var max_tix = 60; }
+	
+	var initial_time = hours + days*24;
+	var time_delta = hours_delta + days_delta*24;
+	
+	/*console.log("Total Events: " + myEvents.length );
+    console.log("Initial Tickets: " + initial_tix );
+	console.log("Tickets Delta: +/- " + tix_delta);
+	console.log("Initial Time: " + initial_time + " hrs");
+	console.log("Time Delta: +/- " + time_delta + " hrs");
+	console.log("Stage: " + stage);
+	console.log( "Max Tix: " + max_tix);*/
+	
+	//set filters
+	
+	//console.log("Other Filter(s): Not Free, Already Over");
+	
+	var filteredEvents = [];
+	
+	for (i=0; i<myEvents.length; i++ ){
+		var isFree = false;
+		var ticket_classes = myEvents[i]['ticket_classes'];
+	
+		for (j=0; j<ticket_classes.length; j++){
+			if (ticket_classes[j]['name'] === 'Free RSVP'){
+				isFree = true;
+				}
+			}
+		
+		if ( ((myEvents[i]['venue_id'] in myVenues && myVenues[myEvents[i]['venue_id']]['address']['address_1'] === stage) || myEvents[i]['venue_id'] in myReconStats && myReconStats[myEvents[i].eventId].stage === stage) && isFree == false && myEvents[i]['status'] === "completed"){
+			filteredEvents.push(myEvents[i])	
+			}
+		}
+	
+	//console.log("Filtered Events: " + filteredEvents.length);
+	
+	return [filteredEvents, initial_tix, tix_delta, initial_time, time_delta, max_tix, smooth_by, weight_show, weight_org, stage];
+}
+
+function bayes(filteredEvents, initial_tix, tix_delta, initial_time, time_delta, max_tix, smooth_by, weightedVals_show, weight_show, weightedVals_org, weight_org){
+	
+	var eStates = [];
+    events_in_state.length = 0;
+	
+	var minTix = initial_tix - tix_delta;
+	var maxTix = initial_tix + tix_delta;
+	
+	console.log("Tickets Range: " + minTix + " - " + maxTix);
+	console.log("Date Range: " + (initial_time-time_delta) + "hrs - " + (initial_time+time_delta) + "hrs");
+	
+	var count_state = 0;
+
+	for (i=0; i<filteredEvents.length; i++){
+		var atn_counter = 0;
+		var inState = false;
+	
+		var eDate = new Date(filteredEvents[i].start.utc);
+		var minDate = new Date(eDate);
+		minDate.setHours(minDate.getHours() - (initial_time + time_delta) );
+		var maxDate = new Date(eDate);
+		maxDate.setHours(maxDate.getHours() - (initial_time - time_delta) );
+		
+		//THIS IS WHERE WE DECIDE WHICH EVENTS ARE IN STATE
+		if (filteredEvents[i]['id'] in idAttendees){ //We're keeping events that ended at 0 attendees, is that a good idea?
+			
+			for (j=0; j<idAttendees[ filteredEvents[i]['id'] ].length; j++){
+				atn_counter+=1;
+				var atnDate = new Date(idAttendees[filteredEvents[i]['id']][j].created);
+			
+				//PART 1: Check if we're in the date range when we hit the min ticket threshold.
+                //Basically, detect hitting the bottom of the box.
+				//Currently won't work with min of 0
+				if ( atn_counter === minTix && atnDate <= maxDate && atnDate >= minDate && inState === false){
+					inState = true;
+				}
+				
+				//PART 2: Check if we're in the ticket range when we hit the min date threshold
+                //Basically, detect hitting the left side of the box.
+				if(j > 0 && inState === false){ // Don't run on first iteration. Don't run if inState = true
+					var atnDatePrime = new Date(idAttendees[ filteredEvents[i]['id'] ][j-1].created);
+					if(atnDatePrime <= minDate && atnDate >= minDate && (atn_counter-1) >= minTix && (atn_counter-1) <= maxTix){
+						inState = true;
+					}
+				}
+				
+			}
+            
+			//Right now we're only pushing IF there were some attendees. Could push either way.
+			eStates.push({
+				"inState": inState,
+				"atn_final": atn_counter
+                //"atn_final": idAttendees[filteredEvents[i].id].length
+				});
+				
+			if(inState === true){
+				count_state += 1;
+                events_in_state.push(filteredEvents[i]);
+                console.log(filteredEvents[i].name.text + " | " + filteredEvents[i]['id'] + " (" + idAttendees[filteredEvents[i]['id']].length + ")");
+			}
+		}
+	}
+    
+    //Sort the Events in state by number of final attendees
+    events_in_state.sort(function(a, b) {
+        let lengthA = idAttendees[a.id] ? idAttendees[a.id].length : 0;
+        let lengthB = idAttendees[b.id] ? idAttendees[b.id].length : 0;
+        return lengthA - lengthB; // For descending order, use lengthA - lengthB for ascending order
+    });
+    
+    //Uncomment the code below to see which events were in state
+    /*console.log("Events In State : " + events_in_state.length);
+    for(i=0;i<events_in_state.length;i++){
+        console.log("Name : " + events_in_state[i].name.text);
+        console.log("Date : " + events_in_state[i].start.local);
+        console.log("Attendance : " + idAttendees[events_in_state[i].id].length);
+    }*/
+	
+	count_state += weightedVals_show.length*weight_show;
+	count_state += weightedVals_org.length*weight_org;
+	
+	var Prob_state=count_state/(eStates.length + weightedVals_show.length*weight_show + weightedVals_org.length*weight_org);
+	//console.log("Prob State : " + Prob_state)
+	var Prob_final = [];
+
+	for (n=0;n<=max_tix;n++){
+		var count_n = 0;
+		
+		for(j=0;j<eStates.length;j++){	
+			if (eStates[j].atn_final === n){
+				count_n += 1.0;
+			}
+		}
+		
+		count_n += countInArray(weightedVals_show,n)*weight_show;
+		count_n += countInArray(weightedVals_org,n)*weight_org;
+		
+		//console.log("count_n : " + count_n + " / eStates.length : " + eStates.length )
+		
+		Prob_final[n]=count_n/(eStates.length + weightedVals_show.length*weight_show + weightedVals_org.length*weight_org);
+		
+		//console.log("Prob Final for " + n + " final tix : " + Prob_final[n])
+	}
+	
+	var Prob_final_state = [];
+	
+	for (n=0;n<=max_tix;n++){
+		var count_state_final = 0;
+		var count_final = 0;
+	
+		for (j=0;j<eStates.length;j++){
+			if ( eStates[j].atn_final === n ){
+				count_final += 1.0;
+				if ( eStates[j].inState === true){
+					count_state_final += 1.0;
+				}
+			}
+		}
+		
+		count_final += countInArray(weightedVals_show,n)*weight_show;
+		count_state_final += countInArray(weightedVals_show,n)*weight_show;
+		
+		count_final += countInArray(weightedVals_org,n)*weight_org;
+		count_state_final += countInArray(weightedVals_org,n)*weight_org;
+		
+		if (count_final > 0){ var Prob_state_final = count_state_final/count_final; }
+		else{ var Prob_state_final = 0; }
+		
+		//console.log("Prob State | Final for " + n + " final tix : " + Prob_state_final);
+	
+		if ( Prob_state > 0 ) { prob = Prob_state_final * Prob_final[n] / Prob_state;}
+		else { prob = 0; }
+	
+		Prob_final_state[n]= {
+			"prob" : prob,
+			"num_points_0" : count_state_final,
+			"num_points_1" : count_state
+			}
+	}
+	
+	//Apply smoothing
+	var Prob_smooth = [];
+	
+	for (n=0 ; n< Prob_final_state.length ; n++){
+		var p_smooth = 0;
+		var total_weight = 0;
+		
+		for(j=smooth_by*(-1) ; j<=smooth_by ; j++){
+			if(n+j<0 || n+j >= Prob_final_state.length ){ continue; }
+			weight_factor = Math.pow((parseInt(smooth_by)+1)-Math.abs(j), .5);
+			p_smooth += Prob_final_state[n+j].prob * weight_factor;
+			total_weight += weight_factor;
+		}
+		
+		p_smooth /= total_weight;
+		
+		Prob_smooth[n]= {
+			"prob" : p_smooth,
+			"num_points_0" : Prob_final_state[n].num_points_0,
+			"num_points_1" : Prob_final_state[n].num_points_1
+			}
+	}
+	
+	//SANITY CHECK
+	var sanityCheck = 0;
+	for(n=0; n<Prob_smooth.length; n++){
+		sanityCheck += Prob_smooth[n].prob;
+	}
+	console.log("SANITY CHECK (Should equal 1): " + sanityCheck);
+	
+	return Prob_smooth;
+}
+
+function countInArray(array, num) {
+    var numCount = 0;
+    for (var k = 0; k < array.length; k++) {
+        if (array[k] === num) {
+            numCount++;
+        }
+    }
+    return numCount;
+}
+
+function timePlot(){
+	console.log("Updating View / 3D Plot");
+	
+	var eId = $("#input-show").val()
+	
+	var inits = initializeValues();
+	var filteredEvents = inits[0];
+	var initial_tix = inits[1];
+	var tix_delta = inits[2];
+	var initial_time = inits[3];
+	var time_delta = inits[4];
+	var max_tix = inits[5];
+	var smooth_by = inits[6];
+	var weight_show = inits[7];
+	var weightedVals_show = [];
+	var weight_org = inits[8];
+	var weightedVals_org = [];
+    var stage = inits[9];
+	
+	//ALTER STAGE
+	if(myReconStats[ eId ].stage === "mainStage"){ var stage = "Main Stage";}
+	if(myReconStats[ eId ].stage === "secondStage"){ var stage = "Second Stage";}
+	if (stage === "Main Stage"){  max_tix = 120; }
+	else if (stage === "Second Stage"){  max_tix = 60; }
+	
+	var filteredEvents = [];
+	
+	for (i=0; i<myEvents.length; i++ ){
+		var isFree = false;
+		var ticket_classes = myEvents[i]['ticket_classes'];
+	
+		for (j=0; i<ticket_classes.length; i++){
+			if (ticket_classes[j]['name'] === 'Free RSVP'){
+				isFree = true;
+				}
+			}
+		
+		if ( ((myEvents[i]['venue_id'] in myVenues && myVenues[myEvents[i]['venue_id']]['address']['address_1'] === stage) || myEvents[i]['venue_id'] in myReconStats && myReconStats[myEvents[i].eventId].stage === stage) && isFree == false && myEvents[i]['status'] === "completed"){
+			filteredEvents.push(myEvents[i])	
+			}
+		}
+	
+	var xData=[];
+	var yData=[];
+	var zData=[];
+	
+	var finalTix=0;
+	
+	console.log("Event: " + idEvents[eId].name.text);
+	
+	var eId = $("#input-show").val();
+	weightedVals_show = showPastSales(filteredEvents, eId, 0);
+	weightedVals_org = orgPastSales(filteredEvents, eId, 0);
+	
+	for(tdelta=0; tdelta<=21; tdelta++){
+		initial_tix = eTixSold(eId, tdelta, 0);
+		
+		if(tdelta === 0){
+			console.log(initial_tix + " total ticket were sold");
+		}
+		
+		initial_time = tdelta*24;
+		
+		var Prob_b0_b1 = bayes(filteredEvents, initial_tix, tix_delta, initial_time, time_delta, max_tix, smooth_by, weightedVals_show, weight_show, weightedVals_org, weight_org);
+		//var yData = [];
+		
+		var xRow = [];
+		var yRow = [];
+		var zRow = [];
+		
+		for(n=0;n<Prob_b0_b1.length;n++){			
+			zRow.push(Prob_b0_b1[n].prob);
+		}
+		zData.push(zRow);
+		
+		if(tdelta===0){final_tix=initial_tix;}
+	}
+	
+	var chartData = [{
+		z: zData,
+		type: 'surface'
+	}];
+  
+	var layout = {
+		autosize: false,
+		width: 600,
+		height: 600
+	};
+	
+	Plotly.newPlot('forecast-graph', chartData, layout);
+	
+	html =	"Total Events: " + myEvents.length + " / Filtered Events: " + filteredEvents.length + "<br>";
+	html += "Final Tickets: " + final_tix + "<br>";
+	$('#content').html(html);
+
+}
+
+function showPastSales(filteredEvents, eId, cutoff){
+	console.log("cutoff : " + cutoff);
+	var showName = idEvents[eId].name.text;
+	var finalSalesArray = [];
+	
+	for (i=0;i<myEvents.length;i++){
+		var tix = eTixSold(myEvents[i].id,0,-1);
+		if(myEvents[i].name.text === showName && myEvents[i].status === "completed" && tix >= cutoff){
+			finalSalesArray.push(tix);
+		}
+	}
+	
+	console.log("PAST SHOW RESULTS");
+	console.log(finalSalesArray);
+	
+	return finalSalesArray;
+}
+
+function orgPastSales(filteredEvents, eId, cutoff){
+	var showName = idEvents[eId].name.text;
+	var orgId = idEvents[eId].organizer_id;
+	var finalSalesArray = [];
+	
+	for (i=0;i<myEvents.length;i++){
+		var tix = eTixSold(myEvents[i].id,0,-1);
+		if(myEvents[i].name.text != showName && myEvents[i].status === "completed" && myEvents[i].organizer_id === orgId && tix >= cutoff){
+			finalSalesArray.push(tix);
+		}
+	}
+	
+	console.log("PAST ORGANIZER RESULTS");
+	console.log(finalSalesArray);
+	
+	return finalSalesArray;
+}
+
+function forecast(simulation){
+    console.clear();
+	console.log("Updating View / 2D Plot");
+	
+	var inits = initializeValues();
+	var filteredEvents = inits[0];
+	var initial_tix = inits[1];
+	var tix_delta = inits[2];
+	var initial_time = inits[3];
+	var time_delta = inits[4];
+	var max_tix = inits[5];
+	var smooth_by = inits[6];
+	var weight_show = inits[7];
+	var weightedVals_show = [];
+	var weight_org = inits[8];
+	var weightedVals_org = [];
+    var stage = inits[9];
+	
+	if(simulation === false){
+		//ALTER INITIAL TIX, START TIME, STAGE
+		var eId = $("#input-upcoming-show").val();
+		
+		var initial_tix = 0;
+		if ( eId in idAttendees){
+			for (atn=0; atn<idAttendees[eId].length; atn++){
+				initial_tix+=1;
+			}
+		}
+		
+		weightedVals_show = showPastSales(filteredEvents, eId, initial_tix);
+		weightedVals_org = orgPastSales(filteredEvents, eId, initial_tix);
+		
+		var eDate = new Date(idEvents[eId].start.local);
+		var rightNow = new Date();
+		
+		//ALTER STAGE
+		var stage = myVenues[ idEvents[eId]['venue_id'] ]['address']['address_1'];
+		if (stage === "Main Stage"){  max_tix = 120; }
+		else if (stage === "Second Stage"){  max_tix = 60; }
+	
+		var filteredEvents = [];
+	
+		for (i=0; i<myEvents.length; i++ ){
+			var isFree = false;
+			var ticket_classes = myEvents[i]['ticket_classes'];
+	
+			for (j=0; i<ticket_classes.length; i++){
+				if (ticket_classes[j]['name'] === 'Free RSVP'){
+					isFree = true;
+					}
+				}
+		
+			if ( ((myEvents[i]['venue_id'] in myVenues && myVenues[myEvents[i]['venue_id']]['address']['address_1'] === stage) || myEvents[i]['venue_id'] in myReconStats && myReconStats[myEvents[i].eventId].stage === stage) && isFree == false && myEvents[i]['status'] === "completed"){
+				filteredEvents.push(myEvents[i])	
+				}
+			}
+			
+		initial_time = Math.abs(eDate - rightNow) / (1000 * 60 * 60); // convert ms to hrs
+	}
+	
+	var Prob_b0_b1 = bayes(filteredEvents, initial_tix, tix_delta, initial_time, time_delta, max_tix, smooth_by, weightedVals_show, weight_show, weightedVals_org, weight_org);
+	
+	//console.log("Probability array");
+	//console.log(Prob_b0_b1);
+	
+	var xData = [];
+	var yData = [];
+	var text = [];
+	
+	var mean=0;
+	
+    eis_index = 0;
+	for(n=0;n<Prob_b0_b1.length;n++){
+		xData.push(n);
+		yData.push(Prob_b0_b1[n].prob);
+		//text.push(Prob_b0_b1[n].num_points_0 + " Events / " + Prob_b0_b1[n].num_points_1 + " Events In State")
+        if(Prob_b0_b1[n].num_points_0>0){
+            var point_text = "";
+            for(i=0;i<Prob_b0_b1[n].num_points_0;i++){
+                point_text = point_text.concat(events_in_state[eis_index].name.text + " | " + events_in_state[eis_index].start.local + " | " + events_in_state[eis_index].id + "<br>");
+                eis_index+=1;
+            }
+            text.push(point_text);
+        }
+        else{
+            text.push("No Events");
+        }
+		
+		mean+=(Prob_b0_b1[n].prob) * (n);
+	}
+	
+	/*var chartData = [{
+		x: xData,
+		y: yData,
+		text: text,
+		mode: 'markers'
+	}];
+	
+	Plotly.newPlot('forecast-graph', chartData);*/
+	
+    var cred_int = parseInt($("#input-confidence").val()) * .01;
+	var interval_vars = credible_interval(Prob_b0_b1, cred_int); // credible interval
+	
+	/*html =	"Total Events: " + myEvents.length + " / Filtered Events: " + filteredEvents.length + " / Events In State : " + Prob_b0_b1[0].num_points_1 + " / Weighted Events (Shows) : " + weightedVals_show.length + " / Weighted Events (Organizers) : " + weightedVals_org.length + "<br>";
+	html += "Starting Tickets: " + initial_tix + " +/- " + tix_delta + "<br>";
+	html += "Starting Time: " + Math.round(initial_time*10)/10 + " hrs +/- " + time_delta + " hrs<br>";
+	html += "<strong> Tix Guess: " + Math.round(mean) + "</strong><br>";
+	html += "Credible Interval: " + interval_vars[0] + " - " + interval_vars[1] + " at " + Math.round(interval_vars[2]*1000)/1000 + " Probability <br>";
+	if(simulation == false){
+		html += "Show is " + idEvents[eId].name.text + " in " + Math.floor(initial_time/24) + " days with " + initial_tix + " currently sold";
+	}*/
+    
+    html = "<strong> Most likely final number of ticket sold: " + Math.round(mean) + "</strong><br>";
+    //html += "Initial Ticketing Conditions: " + (initial_tix-tix_delta) + "-" + (initial_tix+tix_delta) + " Tickets Sold " + (Math.round(initial_time*10)/10 - time_delta) + "-" + (Math.round(initial_time*10)/10-time_delta) + " hrs from the scheduled event start time.<br>";
+    html += Prob_b0_b1[0].num_points_1 + " events matched the Initial Ticketing Conditions out of " + myEvents.length + " in the data set<br>";
+    html += "Credible Interval: " + interval_vars[0] + " - " + interval_vars[1] + " at " + Math.round(interval_vars[2]*1000)/1000 + " Probability <br><br>";
+    
+	$('#content').html(html);
+	
+	//MORE CHARTING STUFF
+    
+    p_max=Math.max.apply(Math, yData);
+	
+	var plotMean = {
+		x: [Math.round(mean), Math.round(mean)],
+		y: [0, p_max],
+		text: ["p_mean","p_mean"],
+  		mode: 'lines',
+        name: 'p_mean'
+	};
+	
+	var plotProb = {
+		x: xData,
+		y: yData,
+		text: text,
+		mode: 'markers',
+        name: 'p'
+	};
+    
+    //Add in mean line to plot or don't
+    if($('#show_mean').is(':checked')){
+        var chartData = [plotProb, plotMean];
+    }
+    else{
+        var chartData = [plotProb]
+    }
+    
+    if($('#show_ci').is(':checked')){
+        var plotLayout = {
+                    shapes: [
+                        {
+                            type: 'rect',
+                            x0: interval_vars[0],
+                            y0: 0,
+                            x1: interval_vars[1],
+                            y1: p_max,
+                            line: {
+                                color: 'RoyalBlue',
+                                width: 0,
+                                opacity:0
+                            },
+                            fillcolor: 'LightSkyBlue',
+                            opacity:.2
+                        }
+                    ],
+                    xaxis: {
+                        title: 'Tickets'
+                    },
+                    yaxis: {
+                        title: 'p(Tickets)'
+                    }
+                };
+    }
+    else{
+        var plotLayout = {
+            xaxis: {
+                title: 'Tickets'
+            },
+            yaxis: {
+                title: 'p(Tickets)'
+            }
+        }
+        
+    }
+	
+    /*var chartLayout = {
+        title:'Probability',
+        xaxis: {
+            title: 'Tickets'
+        },
+        yaxis: {
+            title: 'p(Tickets)'
+        }
+    };*/
+    
+    
+    Plotly.newPlot('forecast-graph', chartData, plotLayout);
+    
+    //Show confidence interval or don't
+    /*if($('#show_ci').is(':checked')){
+        Plotly.newPlot('forecast-graph', chartData, plotLayout);
+    }
+    else{
+        Plotly.newPlot('forecast-graph', chartData);
+    }*/
+}
+
+function eTixSold(eId, days, hours){
+	var count = 0;
+	
+	var eDate_0 = new Date(idEvents[eId].start.utc);
+	var eDate_1 = eDate_0;
+	eDate_1.setDate(eDate_1.getDate() - days);
+	eDate_1.setHours(eDate_1.getHours() - hours);
+
+	if ( eId in idAttendees){
+		for (atn=0; atn<idAttendees[eId].length; atn++){
+		
+			var atnDate = new Date(idAttendees[eId][atn].created)
+			if (atnDate < eDate_1){
+				count+=1;
+			}	
+		}
+	}
+		
+	return count;
+}
+
+function credible_interval (Prob_b0_b1, critical_perc){
+	var mean = 0;
+	
+	for(n=0;n<Prob_b0_b1.length;n++){
+		mean+=(Prob_b0_b1[n].prob) * (n);
+	}
+
+	//Calculate Credible Interval
+    var critical_perc = parseInt($("#input-confidence").val()) * .01;
+	var ci_perc = 0;
+	var ci_min = Math.round(mean);
+	var ci_max = Math.round(mean);
+	
+	ci_perc += Prob_b0_b1[ci_max].prob;
+	
+	while (ci_perc < critical_perc){
+		ci_min -= 1;
+		ci_max += 1;
+		
+		ci_perc += Prob_b0_b1[ci_min].prob;
+		ci_perc += Prob_b0_b1[ci_max].prob;
+	}
+	
+	// trim edges
+	while (Prob_b0_b1[ci_min].prob === 0){ ci_min += 1; }
+	while (Prob_b0_b1[ci_max].prob === 0){ ci_max -= 1; }
+	
+	return [ci_min, ci_max, ci_perc];
+}
+    
+function sortByDate(arr) {
+    return arr.sort((a, b) => {
+        // Convert the 'created' date strings to Date objects
+        let dateA = new Date(a.created);
+        let dateB = new Date(b.created);
+
+        // Compare the dates
+        return dateA - dateB;
+    });
+}
+    
+function explore_orders(){
+    
+    var inits = initializeValues();
+    var initial_tix = inits[1];
+    var tix_delta = inits[2];
+    
+    var initial_time = inits[3];
+    var time_delta = inits[4];
+    
+    var eId = $('#event_id').val();
+    if(!idAttendees[eId]){console.log('Error! Invalid Event ID.');}
+    else{
+        var eDate = new Date (idEvents[eId].start.utc);
+        
+        var xData = [];
+        var yData = [];
+        var tData = [];
+        
+        var atn_counter = 0;
+        
+        for(i=0;i<idAttendees[eId].length;i++){
+            var atnDate = new Date(idAttendees[eId][i].created);
+            atn_counter += 1;
+            xData.push((eDate - atnDate) / (1000 * 60 * 60 * 24)*(-1));
+            yData.push(atn_counter);
+            tData.push("$" + idAttendees[eId][i].costs.gross.value/100 + " Gross");
+        }
+        
+        /*console.log(xData);
+        console.log(yData);
+        console.log(tData);*/
+        
+        var atnPlot = {
+            x: xData,
+            y: yData,
+            text: tData,
+            name: 'Attendees',
+            mode: 'lines+markers',
+            type: 'scatter',
+            line: {
+                shape: 'hv'
+              }
+        };
+        
+        var chartData = [atnPlot]
+        
+        var plotInits = {
+                    shapes: [
+                        {
+                            type: 'rect',
+                            x0: ((-1)*initial_time-time_delta)/24,
+                            y0: initial_tix-tix_delta,
+                            x1: ((-1)*initial_time+time_delta)/24,
+                            y1: initial_tix+tix_delta,
+                            line: {
+                                color: 'RoyalBlue',
+                                width: 0,
+                                opacity:0
+                            },
+                            fillcolor: 'LightSkyBlue',
+                            opacity:.2
+                        }
+                    ],
+                    title: idEvents[eId].name.text,
+                    xaxis: {
+                        title: 'Time Until Show (Days)'
+                    },
+                    yaxis: {
+                        title: 'Tix Sold'
+                    }
+                };
+        
+        Plotly.newPlot('orders-graph', chartData, plotInits);
+    }
+}
+    
+function all_orders_all_shows(){
+    
+    var inits = initializeValues();
+    var initial_tix = inits[1];
+    var tix_delta = inits[2];
+    
+    var initial_time = inits[3];
+    var time_delta = inits[4];
+    
+    var chartData = [];
+    
+    for(j=0;j<events_in_state.length;j++){
+        var eId = events_in_state[j].id;
+        var eDate = new Date (idEvents[eId].start.utc);
+        
+        var xData = [];
+        var yData = [];
+        var tData = [];
+        
+        var atn_counter = 0;
+        
+        for(i=0;i<idAttendees[eId].length;i++){
+            var atnDate = new Date(idAttendees[eId][i].created);
+            atn_counter += 1;
+            xData.push((eDate - atnDate) / (1000 * 60 * 60 * 24)*(-1));
+            yData.push(atn_counter);
+            tData.push("$" + idAttendees[eId][i].costs.gross.value/100 + " Gross");
+        }
+        
+        /*console.log(xData);
+        console.log(yData);
+        console.log(tData);*/
+        
+        var atnPlot = {
+            x: xData,
+            y: yData,
+            text: tData,
+            name: 'Attendees',
+            mode: 'lines+markers',
+            type: 'scatter',
+            line: {
+                shape: 'hv'
+              }
+        };
+        
+        chartData.push(atnPlot);
+    }
+    
+    
+    var plotInits = {
+                shapes: [
+                    {
+                        type: 'rect',
+                        x0: ((-1)*initial_time-time_delta)/24,
+                        y0: initial_tix-tix_delta,
+                        x1: ((-1)*initial_time+time_delta)/24,
+                        y1: initial_tix+tix_delta,
+                        line: {
+                            color: 'RoyalBlue',
+                            width: 0,
+                            opacity:0
+                        },
+                        fillcolor: 'LightSkyBlue',
+                        opacity:.8
+                    }
+                ],
+                title: 'All Orders All Shows',
+                xaxis: {
+                    title: 'Time Until Show (Days)'
+                },
+                yaxis: {
+                    title: 'Tix Sold'
+                }
+            };
+    
+    Plotly.newPlot('orders-graph', chartData, plotInits);
+    
+}
+
+</script>
+
+<style>
+html{
+	margin:0px;
+	border:none;
+	padding:0px;
+}
+
+body{
+	font-family: 'Open Sans', sans-serif;
+	margin:0px 25px 0px 10px;
+}
+</style>
+
+</head>
+<body>
+	<h1>PIANOFIGHT TICKET FORECAST</h1>
+	<div id='controls'>
+    <strong> INITIAL STATE: </strong>
+    Stage
+    <select id="input-stage">
+        <option value="Main Stage" selected="selected">Main Stage</option>
+        <option value="Second Stage">Second Stage</option>
+    </select> |
+    Tickets Sold: <input type="number" min="0" max="120" value="30" step="1" id='input-initial-tix'> |
+    Time until Event Start in Days: <input type="number" min="0" max="100" value="1" id='input-days'>
+    + Hours: <input type="number" min="0" max="23" value="0" id='input-hours'><br>
+    <strong> TOLERANCES: </strong>
+    Ticket Delta: <input type="number" min="0" max="10" value="2" step="1" id='input-tix-delta'> |
+    Time Delta in Days: <input type="number" min="0" max="5" value="0" id='input-days-delta'>
+	+ Hours: <input type="number" min="0" max="24" value="4" id='input-hours-delta'> <br>
+    <strong> VISUALIZATION: </strong>
+    Smooth By: <input type="number" min="0" max="20" value="10" id='input-smooth-by'> |
+    Confidence Interval: <input type="number" min="0" max="100" value="80" id='input-confidence'> |
+    Show Mean <input type='checkbox' id='show_mean' > |
+    Show Confidence Interval <input type='checkbox' id='show_ci' checked> <br>
+    <input type='submit' value="Forecast" onClick="forecast(simulation=true);">
+    
+	<!--strong> EVENT FORECAST </strong><br>
+	<select id="input-upcoming-show" style='max-width:100%'></select>
+	Past Show Weight: <input type="number" min="0" max="500" value="5" id='input-past-show-weight'>
+	Past Organizer Weight: <input type="number" min="0" max="500" value="2" id='input-past-organizer-weight'><br>
+	<input type='submit' value="Forecast" onClick="forecast(simulation=false);"> 
+    <hr-->
+
+	<!--strong> TIME PLOT TEST </strong><br>
+	<select id="input-show" style='max-width:100%'></select><br>
+	<input type='submit' value="Time Plot" onClick="timePlot();">
+	</div-->
+	
+	<div id='forecast-graph'></div>
+	<div id='content'></div>
+    
+    <hr>
+    
+    <strong> VISUALIZE ORDERS </strong><br>
+    Event ID: <input type='number' id='event_id' value='60820963138'>
+    <input type='submit' value="Visualize Single Event Orders" onClick="explore_orders();">
+    <input type='submit' value="Visualize All Event Orders" onClick="all_orders_all_shows();">
+            
+    <div id='orders-graph'></div>
+</body>
+</html>
