@@ -156,7 +156,7 @@ Proprietary - Internal tool for PianoFight San Francisco (RIP)
 
 Built for PianoFight's operations team
 
-markdown## Note on Data Files
+## Note on Data Files
 
 This repository contains the application code only. The actual event data files are not included as they contain sensitive business information. To run this application, you would need:
 
