@@ -1,0 +1,39 @@
+# Data files (contain sensitive business data)
+*.JSON
+*.json
+
+# Keep example/template files if you create them
+!*example*.json
+!*template*.json
+
+# API keys and credentials
+.env
+.env.local
+config.js
+secrets.js
+
+# Node modules (if you add any build tools)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build outputs (if you add a build process)
+dist/
+build/
+
+# Temporary files
+tmp/
+temp/
