@@ -1,4 +1,5 @@
 # PianoFight Ticket Forecast
+![Forecast Visualization](screenshot.png)
 
 A Bayesian statistical forecasting tool for predicting ticket sales at PianoFight Theater venues.
 
@@ -154,6 +155,17 @@ Proprietary - Internal tool for PianoFight San Francisco (RIP)
 ## Author
 
 Built for PianoFight's operations team
+
+markdown## Note on Data Files
+
+This repository contains the application code only. The actual event data files are not included as they contain sensitive business information. To run this application, you would need:
+
+- `events-all.JSON` - Event data from Eventbrite API
+- `attendees.JSON` - Ticket purchase records
+- `venues.JSON` - Venue configuration
+- `reconStats.JSON` - Reconciliation statistics
+
+These files are generated via automated cron jobs that query the Eventbrite API.
 
 ---
 
