@@ -154,7 +154,7 @@ Proprietary - Internal tool for PianoFight San Francisco (RIP)
 
 ## Author
 
-Built for PianoFight's operations team
+Built for PianoFight's operations team in 2018. 
 
 ## Note on Data Files
 
